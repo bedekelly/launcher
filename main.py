@@ -198,9 +198,9 @@ class Launcher:
                                 stderr=devnull)
         else:
             with open(os.devnull, "w") as devnull:
-                subprocess.call(["nohup", data["command"], "&"],
-                                stdout=devnull,
-                                stderr=devnull)
+                subprocess.Popen(["nohup", data["command"]],
+                                 stdout=devnull,
+                                 stderr=devnull)
         quit()
 
     def handle_key(self, key):
