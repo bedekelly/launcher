@@ -1,7 +1,12 @@
 Launcher
 ============
 
-Quick and easy way to - oh, who am I kidding, this is dumb. But it's an attempt at replicating features like Launchy has, using only plain text (and a few Unicode chars for boxes). Made using curses, because I'm a masochist like that.
+Text-based launcher for your Linux box. Launches text-based and graphical programs correctly. Includes fuzzy-searching.
 
 ![Image of Laucher (what a great name!)]
 (scrot.png)
+
+##Fuzzy Searching
+Gives whole words priority, then phrases containing all the letters in the search query in order. So `ema` matches `Emacs` first of all, but then finds other things like `GearyMail`.
+
+The search matches programs' full names, as well as the names of the commands required to execute them. So `gnome-control-center` will match the program called "GCCenter", since in a terminal you'd have to type `gnome-control-center` to run it.
