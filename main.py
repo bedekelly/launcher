@@ -198,7 +198,7 @@ class Launcher:
                                 stderr=devnull)
         else:
             with open(os.devnull, "w") as devnull:
-                subprocess.call(["nohup", data["command"]],
+                subprocess.call(["nohup", data["command"], "&"],
                                 stdout=devnull,
                                 stderr=devnull)
         quit()
