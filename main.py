@@ -189,7 +189,19 @@ class Launcher:
     def run_current_selection(self):
         """Send the shell command to get the process running."""
         import subprocess
-        ...
+        name, data, _ = self.matches_copy[self.selected_item]
+        if data["needs"] == "text":
+            with open(os.devnull, "w") as devnull:
+                subprocess.call(["nohup", "gnome-terminal", "-e",
+                                 data["command"]],
+                                stdout=devnull,
+                                stderr=devnull)
+        else:
+            with open(os.devnull, "w") as devnull:
+                subprocess.call(["nohup", data["command"]],
+                                stdout=devnull,
+                                stderr=devnull)
+        quit()
 
     def handle_key(self, key):
         """Handle a keypress caught by curses."""
@@ -246,7 +258,6 @@ class Launcher:
         while self.running:
             # Enter the main program loop
             key = self.stdscr.getkey()
-            log(ord(key))
             for fn in [self.stdscr.clear,
 
                        lambda: self.handle_key(key),
@@ -263,7 +274,9 @@ class Launcher:
 
     def print_menu_items(self):
         # Print current selection indicator
+        self.matches_copy = []
         for word_index, program in enumerate(self.matches):
+            self.matches_copy.append(program)
             program, data, name_match = program
             if word_index < (self.maxy - self.pad - 2):
                 # Don't try to highlight the title if the user's pattern only matched the filename.
