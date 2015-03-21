@@ -8,6 +8,7 @@ import re
 from time import sleep
 from enum import Enum
 from contextlib import contextmanager
+import pickle
 
 WHOLE_PATTERN_FIRST = 4
 WHOLE_PATTERN_IN_STRING = 3
@@ -53,8 +54,19 @@ def parse_menu(menufile_text):
         return None, None
 
 
+def parse_desktop(desktop_file):
+    lines = desktop_file.readlines()
+    lines = [l.strip().split("=", 1) for l in lines
+             if l != "" and not any([l.startswith("#"),
+                                     l.startswith("["),
+                                     l.startswith("\n")])]
+    lines = (l for l in lines if l != [""])
+    properties = dict(lines)
+    return properties["Name"], properties
+
+
 @memoize
-def get_programs():
+def get_programs_dmenu():
     """Returns a dictionary of program names and their associated data."""
     programs = {}
     path = "/usr/share/menu/"
@@ -65,7 +77,32 @@ def get_programs():
                 programs[name] = data
     return programs
 
+    
+@memoize
+def get_programs():
+    def get_program_files():
+        with open(os.devnull, "w") as devnull:
+            import subprocess
+            cmd = "bash finder.sh".split()
+            out = subprocess.check_output(cmd)
+        return out.split()
 
+    data_path = os.path.join(os.path.expanduser("~"), ".launcher_data")
+    if os.path.exists(data_path):
+        with open(data_path, "rb") as data_file:
+            program_data = pickle.load(data_file)
+    else:
+        program_files = get_program_files()
+        program_data = []
+        for f in program_files:
+            with open(f) as program_file:
+                program_data.append(parse_desktop(program_file))
+        program_data = dict(program_data)
+        with open(data_path,"wb") as data_file:
+            pickle.dump(program_data, data_file)
+    return program_data
+
+    
 @contextmanager
 def use_curses():
     """Wrapper for the uglier bits of curses initialization."""
@@ -117,7 +154,7 @@ def matching_programs(pattern):
 
     # For every program, check if it matches by title or by filename.
     for program, data in programs.items():
-        title_result = fuzzy_search(pattern, data['title'])
+        title_result = fuzzy_search(pattern, data['Name'])
         filename_result = fuzzy_search(pattern, program)
         title_match = True
         for result in title_result, filename_result:
@@ -190,7 +227,11 @@ class Launcher:
         """Send the shell command to get the process running."""
         import subprocess
         name, data, _ = self.matches_copy[self.selected_item]
-        if data["needs"] == "text":
+        try:
+            needs_term = data["Terminal"].lower() == "true"
+        except KeyError:
+            needs_term = False
+        if needs_term:
             with open(os.devnull, "w") as devnull:
                 subprocess.call(["nohup", "gnome-terminal", "-e",
                                  data["command"]],
@@ -198,9 +239,12 @@ class Launcher:
                                 stderr=devnull)
         else:
             with open(os.devnull, "w") as devnull:
-                subprocess.Popen(["nohup", data["command"]],
-                                 stdout=devnull,
-                                 stderr=devnull)
+                cmdlist = ["nohup"]
+                cmdlist.extend(data["Exec"].split())
+                subprocess.Popen(cmdlist,
+                                 #stdout=devnull,
+                                 #stderr=devnull
+                )
         quit()
 
     def handle_key(self, key):
@@ -259,7 +303,6 @@ class Launcher:
             # Enter the main program loop
             key = self.stdscr.getkey()
             for fn in [self.stdscr.clear,
-
                        lambda: self.handle_key(key),
                        self.update_xy,
                        self.print_pattern,
@@ -281,9 +324,9 @@ class Launcher:
             if word_index < (self.maxy - self.pad - 2):
                 # Don't try to highlight the title if the user's pattern only matched the filename.
                 if name_match:
-                    letters = embolden(data['title'], self.pattern)
+                    letters = embolden(data['Name'], self.pattern)
                 else:
-                    letters = data['title']
+                    letters = data['Name']
                     
                     # Print out each letter with its attributes.
                 for letter_index, letter in enumerate(letters.split()):
